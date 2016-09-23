@@ -1,0 +1,159 @@
+#!/usr/bin/expect -f
+
+if {$argc >= 1 && [lindex $argv 0] == "config"} {
+  send_user "multigraph adsl_traffic\n"
+  send_user "graph_order down up\n"
+  send_user "graph_title ADSL Traffic\n"
+  send_user "graph_args --base 1000\n"
+  send_user "graph_vlabel bits in (-) / out (+) per \${graph_period}\n"
+  send_user "graph_category network\n"
+  send_user "down.label received\n"
+  send_user "down.type DERIVE\n"
+  send_user "down.graph no\n"
+  send_user "down.cdef down,8,*\n"
+  send_user "down.min 0\n"
+  send_user "up.label bps\n"
+  send_user "up.type DERIVE\n"
+  send_user "up.negative down\n"
+  send_user "up.cdef up,8,*\n"
+  send_user "up.min 0\n"
+
+  send_user "multigraph adsl_snr\n"
+  send_user "graph_order down up\n"
+  send_user "graph_title ADSL SNR\n"
+  send_user "graph_vlabel SNR in (-) / out (+)\n"
+  send_user "graph_category network\n"
+  send_user "down.label received\n"
+  send_user "down.graph no\n"
+  send_user "down.min 0\n"
+  send_user "up.label dB\n"
+  send_user "up.negative down\n"
+  send_user "up.min 0\n"
+
+  send_user "multigraph adsl_attn\n"
+  send_user "graph_order down up\n"
+  send_user "graph_title ADSL Attn\n"
+  send_user "graph_vlabel Attn in (-) / out (+)\n"
+  send_user "graph_category network\n"
+  send_user "down.label received\n"
+  send_user "down.graph no\n"
+  send_user "down.min 0\n"
+  send_user "up.label dB\n"
+  send_user "up.negative down\n"
+  send_user "up.min 0\n"
+
+  send_user "multigraph adsl_pwr\n"
+  send_user "graph_order down up\n"
+  send_user "graph_title ADSL Transmit Power\n"
+  send_user "graph_vlabel Transmit Power in (-) / out (+)\n"
+  send_user "graph_category network\n"
+  send_user "down.label received\n"
+  send_user "down.graph no\n"
+  send_user "down.min 0\n"
+  send_user "up.label dBm\n"
+  send_user "up.negative down\n"
+  send_user "up.min 0\n"
+
+  send_user "multigraph adsl_max\n"
+  send_user "graph_order down up\n"
+  send_user "graph_title ADSL Sync Max\n"
+  send_user "graph_args --base 1000\n"
+  send_user "graph_vlabel bits in (-) / out (+) per second\n"
+  send_user "graph_category network\n"
+  send_user "down.label received\n"
+  send_user "down.graph no\n"
+  send_user "down.cdef down,1000,*\n"
+  send_user "down.min 0\n"
+  send_user "up.label bps\n"
+  send_user "up.negative down\n"
+  send_user "up.cdef up,1000,*\n"
+  send_user "up.min 0\n"
+
+  send_user "multigraph adsl_rate\n"
+  send_user "graph_order down up\n"
+  send_user "graph_title ADSL Sync Rate\n"
+  send_user "graph_args --base 1000\n"
+  send_user "graph_vlabel bits in (-) / out (+) per second\n"
+  send_user "graph_category network\n"
+  send_user "down.label received\n"
+  send_user "down.graph no\n"
+  send_user "down.cdef down,1000,*\n"
+  send_user "down.min 0\n"
+  send_user "up.label bps\n"
+  send_user "up.negative down\n"
+  send_user "up.cdef up,1000,*\n"
+  send_user "up.min 0\n"
+
+  exit 0
+}
+
+set ip [expr {[info exists env(IP)] ? $env(IP) : "192.168.1.1"}]
+set username [expr {[info exists env(USERNAME)] ? $env(USERNAME) : "virgin"}]
+set password [expr {[info exists env(PASSWORD)] ? $env(PASSWORD) : ""}]
+
+log_user 0
+set count -3
+while {$count < 0} { 
+  spawn telnet -c $ip
+  expect {
+    "# " {
+      send "ifconfig ppp0\r"
+      expect {
+        -re {RX bytes:(\d+) \([^)]+\)  TX bytes:(\d+) \([^)]+\)} {
+          send_user "multigraph adsl_traffic\n"
+          send_user "down.value ${expect_out(1,string)}\n"
+          send_user "up.value ${expect_out(2,string)}\n"
+          exp_continue
+        }
+        "# " {}
+      }
+      send "adslctl info --show\r"
+      expect {
+        -re {SNR \(dB\): +([\d.]+) +([\d.]+)} {
+          send_user "multigraph adsl_snr\n"
+          send_user "down.value ${expect_out(1,string)}\n"
+          send_user "up.value ${expect_out(2,string)}\n"
+          exp_continue
+        }
+        -re {Attn\(dB\): +([\d.]+) +([\d.]+)} {
+          send_user "multigraph adsl_attn\n"
+          send_user "down.value ${expect_out(1,string)}\n"
+          send_user "up.value ${expect_out(2,string)}\n"
+          exp_continue
+        }
+        -re {Pwr\(dBm\): +([\d.]+) +([\d.]+)} {
+          send_user "multigraph adsl_pwr\n"
+          send_user "down.value ${expect_out(1,string)}\n"
+          send_user "up.value ${expect_out(2,string)}\n"
+          exp_continue
+        }
+        -re {Max\(Kbps\): +(\d+) +(\d+)} {
+          send_user "multigraph adsl_max\n"
+          send_user "down.value ${expect_out(1,string)}\n"
+          send_user "up.value ${expect_out(2,string)}\n"
+          exp_continue
+        }
+        -re {Rate \(Kbps\): +(\d+) +(\d+)} {
+          send_user "multigraph adsl_rate\n"
+          send_user "down.value ${expect_out(1,string)}\n"
+          send_user "up.value ${expect_out(2,string)}\n"
+          exp_continue
+        }
+        "# " {}
+      }
+      send "exit\r"
+      expect "Connection closed by foreign host."
+      set count 1
+    }
+    eof {
+      spawn curl http://$username:$password@$ip/setup.cgi?todo=debug
+      expect {
+        "Debug Enable!" {}
+        eof {
+          incr count
+          sleep 5
+        }
+      }
+    }
+  }
+}

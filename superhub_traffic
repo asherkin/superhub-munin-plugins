@@ -1,0 +1,88 @@
+#!/usr/bin/env php
+<?php
+
+if ($argc > 1 && $argv[1] === 'config') {
+  print('graph_title Traffic rate'.PHP_EOL);
+  print('graph_vlabel bits in (-) / out (+) per ${graph_period}'.PHP_EOL);
+  print('graph_category superhub'.PHP_EOL);
+  print('graph_args --base 1000'.PHP_EOL);
+  print('graph_order down up'.PHP_EOL);
+
+  print('down.label received'.PHP_EOL);
+  print('down.type ABSOLUTE'.PHP_EOL);
+  print('down.graph no'.PHP_EOL);
+  print('down.cdef down,8,*'.PHP_EOL);
+
+  print('up.label bps'.PHP_EOL);
+  print('up.type ABSOLUTE'.PHP_EOL);
+  print('up.negative down'.PHP_EOL);
+  print('up.cdef up,8,*'.PHP_EOL);
+
+  exit();
+}
+
+$document = new DOMDocument();
+$document->loadHTMLFile('http://'.getenv('host').'/VmLogin.html', LIBXML_NONET);
+$query = new DOMXPath($document);
+$loginFieldName = $query->evaluate('string(//input[@id="password"]/@name)');
+
+$loginRequest = curl_init('http://'.getenv('host').'/cgi-bin/VmLoginCgi');
+curl_setopt($loginRequest, CURLOPT_POST, true);
+curl_setopt($loginRequest, CURLOPT_POSTFIELDS, $loginFieldName.'='.getenv('password').'&VmWpsPin='.getenv('wpspin'));
+curl_setopt($loginRequest, CURLOPT_RETURNTRANSFER, true);
+$loginBody = curl_exec($loginRequest);
+$httpCode = curl_getinfo($loginRequest, CURLINFO_HTTP_CODE);
+curl_close($loginRequest);
+
+$varPattern = '/var res="(?P<res>\d)";[\s\S]*?var defpass="(?P<defpass>\d)";[\s\S]*?var wpsPinAuth="(?P<wpsPinAuth>\d)";[\s\S]*?var singleUser="(?P<singleUser>\d)";[\s\S]*?var lanAccess="(?P<lanAccess>\d)";/';
+if ($httpCode !== 200 || preg_match($varPattern, $loginBody, $loginVars) !== 1 || $loginVars['res'] !== '0' || $loginVars['singleUser'] !== '0') {
+  print('down.value U'.PHP_EOL);
+  print('up.value U'.PHP_EOL);
+  exit();
+}
+
+$document = new DOMDocument();
+@$document->loadHTMLFile('http://'.getenv('host').'/device_connection_status.html', LIBXML_NONET);
+$query = new DOMXPath($document);
+
+$dataDownloaded = $query->evaluate('string(//div[@id="activitySummary"]/div/span[../label="Session Data Downloaded"]/text())');
+$dataDownloaded = explode(' ', $dataDownloaded);
+switch($dataDownloaded[1]) {
+case 'GB':
+  $dataDownloaded = $dataDownloaded[0] * 1000000000;
+  break;
+case 'MB':
+  $dataDownloaded = $dataDownloaded[0] * 1000000;
+  break;
+case 'KB':
+  $dataDownloaded = $dataDownloaded[0] * 1000;
+  break;
+default:
+  $dataDownloaded = 'U';
+}
+print('down.value '.$dataDownloaded.PHP_EOL);
+
+$dataUploaded = $query->evaluate('string(//div[@id="activitySummary"]/div/span[../label="Session Data Uploaded"]/text())');
+$dataUploaded = explode(' ', $dataUploaded);
+switch($dataUploaded[1]) {
+case 'GB':
+  $dataUploaded = $dataUploaded[0] * 1000000000;
+  break;
+case 'MB':
+  $dataUploaded = $dataUploaded[0] * 1000000;
+  break;
+case 'KB':
+  $dataUploaded = $dataUploaded[0] * 1000;
+  break;
+default:
+  $dataUploaded = 'U';
+}
+print('up.value '.$dataUploaded.PHP_EOL);
+
+$resetRequest = curl_init('http://'.getenv('host').'/cgi-bin/deviceconnectionstatusCgi');
+curl_setopt($resetRequest, CURLOPT_POST, true);
+curl_setopt($resetRequest, CURLOPT_RETURNTRANSFER, true);
+curl_exec($resetRequest);
+curl_close($resetRequest);
+
+file_get_contents('http://'.getenv('host').'/VmLogout2.html');

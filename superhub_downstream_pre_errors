@@ -1,0 +1,36 @@
+#!/usr/bin/env php
+<?php
+
+if ($argc > 1 && $argv[1] === 'config') {
+  print('graph_title Downstream correctable errors'.PHP_EOL);
+  print('graph_vlabel errors per ${graph_period}'.PHP_EOL);
+  print('graph_category superhub'.PHP_EOL);
+  print('graph_scale no'.PHP_EOL);
+  print('graph_total total'.PHP_EOL);
+
+  for ($i = 1; $i <= 8; ++$i) {
+    print('ds'.$i.'.label DS-'.$i.PHP_EOL);
+    print('ds'.$i.'.type DERIVE'.PHP_EOL);
+    print('ds'.$i.'.min 0'.PHP_EOL);
+  }
+
+  exit();
+}
+
+$document = new DOMDocument();
+$document->loadHTMLFile('http://'.getenv('host').'/cgi-bin/VmRouterStatusDownstreamCfgCgi', LIBXML_NONET);
+
+$query = new DOMXPath($document);
+
+$nodes = $query->evaluate('//td[../td[@class="title" and contains(.,"Pre RS Errors")] and not(@class)]/text()');
+
+$i = 0;
+foreach ($nodes as $node) {
+  $value = $node->textContent;
+  if ($value === 'N/A') {
+    $value = 'U';
+  }
+
+  print('ds'.++$i.'.value '.$value.PHP_EOL);
+}
+

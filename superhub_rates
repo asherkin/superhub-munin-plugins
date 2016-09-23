@@ -1,0 +1,37 @@
+#!/usr/bin/env php
+<?php
+
+if ($argc > 1 && $argv[1] === 'config') {
+  print('graph_title Max traffic rate'.PHP_EOL);
+  print('graph_vlabel bits in (-) / out (+) per ${graph_period}'.PHP_EOL);
+  print('graph_category superhub'.PHP_EOL);
+  print('graph_args --base 1000'.PHP_EOL);
+  print('graph_order down up'.PHP_EOL);
+
+  print('down.label received'.PHP_EOL);
+  print('down.type GAUGE'.PHP_EOL);
+  print('down.min 0'.PHP_EOL);
+  print('down.graph no'.PHP_EOL);
+
+  print('up.label bps'.PHP_EOL);
+  print('up.type GAUGE'.PHP_EOL);
+  print('up.min 0'.PHP_EOL);
+  print('up.negative down'.PHP_EOL);
+
+  exit();
+}
+
+$document = new DOMDocument();
+$document->loadHTMLFile('http://'.getenv('host').'/cgi-bin/VmRouterStatusOperationCfgCgi', LIBXML_NONET);
+
+$query = new DOMXPath($document);
+
+$downstreamTrafficRate = $query->evaluate('string(//table[caption="Primary Downstream Service Flow"]//td[../td[@class="title"]="Max Traffic Rate" and not(@class)]/text())');
+$downstreamTrafficRate = explode(' ', $downstreamTrafficRate);
+$downstreamTrafficRate = $downstreamTrafficRate[0];
+print('down.value '.$downstreamTrafficRate.PHP_EOL);
+
+$upstreamTrafficRate = $query->evaluate('string(//table[caption="Primary Upstream Service Flow"]//td[../td[@class="title"]="Max Traffic Rate" and not(@class)]/text())');
+$upstreamTrafficRate = explode(' ', $upstreamTrafficRate);
+$upstreamTrafficRate = $upstreamTrafficRate[0];
+print('up.value '.$upstreamTrafficRate.PHP_EOL);

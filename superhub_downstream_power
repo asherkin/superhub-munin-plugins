@@ -1,0 +1,35 @@
+#!/usr/bin/env php
+<?php
+
+if ($argc > 1 && $argv[1] === 'config') {
+  print('graph_title Downstream power levels'.PHP_EOL);
+  print('graph_vlabel power level (dBmV)'.PHP_EOL);
+  print('graph_category superhub'.PHP_EOL);
+  print('graph_scale no'.PHP_EOL);
+
+  for ($i = 1; $i <= 8; ++$i) {
+    print('ds'.$i.'.label DS-'.$i.PHP_EOL);
+    print('ds'.$i.'.warning -3:8'.PHP_EOL);
+    print('ds'.$i.'.critical -5:10'.PHP_EOL);
+  }
+
+  exit();
+}
+
+$document = new DOMDocument();
+$document->loadHTMLFile('http://'.getenv('host').'/cgi-bin/VmRouterStatusDownstreamCfgCgi', LIBXML_NONET);
+
+$query = new DOMXPath($document);
+
+$nodes = $query->evaluate('//td[../td[@class="title"]="Power Level (dBmV)" and not(@class)]/text()');
+
+$i = 0;
+foreach ($nodes as $node) {
+  $value = $node->textContent;
+  if ($value === 'N/A') {
+    $value = 'U';
+  }
+
+  print('ds'.++$i.'.value '.$value.PHP_EOL);
+}
+
