@@ -21,6 +21,35 @@ if ($argc > 1 && $argv[1] === 'config') {
   exit();
 }
 
+function parseDataString($input) {
+  $input = explode(' ', $input);
+  $input[0] = str_replace(',', '', $input[0]);
+
+  // Attempt to filter out bad data.
+  if (strlen($input[0]) >= 10) {
+    return 'U';
+  }
+
+  switch($input[1]) {
+  case 'GB':
+    $input = $input[0] * 1000000000;
+    break;
+  case 'MB':
+    $input = $input[0] * 1000000;
+    break;
+  case 'KB':
+    $input = $input[0] * 1000;
+    break;
+  case 'bytes':
+    $input = $input[0];
+    break;
+  default:
+    $input = 'U';
+  }
+
+  return $input;
+}
+
 $document = new DOMDocument();
 $document->loadHTMLFile('http://'.getenv('host').'/VmLogin.html', LIBXML_NONET);
 $query = new DOMXPath($document);
@@ -43,41 +72,25 @@ if ($httpCode !== 200 || preg_match($varPattern, $loginBody, $loginVars) !== 1 |
 
 $document = new DOMDocument();
 @$document->loadHTMLFile('http://'.getenv('host').'/device_connection_status.html', LIBXML_NONET);
+//error_log($document->saveHTML());
+
 $query = new DOMXPath($document);
 
 $dataDownloaded = $query->evaluate('string(//div[@id="activitySummary"]/div/span[../label="Session Data Downloaded"]/text())');
-$dataDownloaded = explode(' ', $dataDownloaded);
-switch($dataDownloaded[1]) {
-case 'GB':
-  $dataDownloaded = $dataDownloaded[0] * 1000000000;
-  break;
-case 'MB':
-  $dataDownloaded = $dataDownloaded[0] * 1000000;
-  break;
-case 'KB':
-  $dataDownloaded = $dataDownloaded[0] * 1000;
-  break;
-default:
-  $dataDownloaded = 'U';
-}
+//error_log('Session Data Downloaded: '.$dataDownloaded);
+
+$dataDownloaded = parseDataString($dataDownloaded);
+
 print('down.value '.$dataDownloaded.PHP_EOL);
+//error_log('Session Data Downloaded Value: '.$dataDownloaded);
 
 $dataUploaded = $query->evaluate('string(//div[@id="activitySummary"]/div/span[../label="Session Data Uploaded"]/text())');
-$dataUploaded = explode(' ', $dataUploaded);
-switch($dataUploaded[1]) {
-case 'GB':
-  $dataUploaded = $dataUploaded[0] * 1000000000;
-  break;
-case 'MB':
-  $dataUploaded = $dataUploaded[0] * 1000000;
-  break;
-case 'KB':
-  $dataUploaded = $dataUploaded[0] * 1000;
-  break;
-default:
-  $dataUploaded = 'U';
-}
+//error_log('Session Data Uploaded: '.$dataUploaded);
+
+$dataUploaded = parseDataString($dataUploaded);
+
 print('up.value '.$dataUploaded.PHP_EOL);
+//error_log('Session Data Uploaded Value: '.$dataUploaded);
 
 $resetRequest = curl_init('http://'.getenv('host').'/cgi-bin/deviceconnectionstatusCgi');
 curl_setopt($resetRequest, CURLOPT_POST, true);
